@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataForge Agent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060b12;--sb:#0a0f1a;--card:#0d1520;--b1:#1a2840;--b2:#243552;
+  --acc:#00e5a0;--adim:rgba(0,229,160,.12);--aglow:rgba(0,229,160,.25);
+  --blu:#3b8aff;--ora:#ff8c42;--pur:#9d70ff;--red:#ff4d6a;
+  --t1:#c9d8e8;--t2:#5a7292;--t3:#3a5070;
+  --mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif
+}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+/* Header */
+.hdr{height:54px;background:var(--sb);border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;z-index:10}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-ic{width:26px;height:26px;background:var(--acc);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#060b12;font-weight:800;font-family:var(--mono)}
+.logo-tx{font-size:15px;font-weight:800;color:#fff;letter-spacing:-.5px}
+.logo-bd{font-size:9px;font-family:var(--mono);color:var(--acc);background:var(--adim);border:1px solid var(--aglow);padding:2px 6px;border-radius:10px;letter-spacing:1.5px}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.btn-run{background:transparent;color:var(--blu);border:1px solid var(--blu);padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.btn-run:hover{background:rgba(59,138,255,.1)}
+.btn-run:disabled{opacity:.35;cursor:not-allowed}
+.btn-up{background:var(--acc);color:#060b12;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.btn-up:hover{filter:brightness(1.1);transform:translateY(-1px)}
+/* Data name badge */
+.data-name{font-size:10px;font-family:var(--mono);color:var(--t2);background:var(--b1);padding:3px 10px;border-radius:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Main */
+.main{display:flex;flex:1;overflow:hidden}
+/* Sidebar */
+.sb{width:210px;background:var(--sb);border-right:1px solid var(--b1);flex-shrink:0;padding:14px 0;overflow-y:auto}
+.sb-lbl{font-size:9px;font-family:var(--mono);color:var(--t3);letter-spacing:2px;padding:0 14px 10px}
+.s-item{display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;transition:all .15s;border-left:2px solid transparent;position:relative}
+.s-item:hover{background:rgba(255,255,255,.03)}
+.s-item.active{background:var(--adim);border-left-color:var(--acc)}
+.s-dot{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t2);flex-shrink:0;font-family:var(--mono);background:var(--card);transition:all .2s}
+.s-item.active .s-dot{border-color:var(--acc);color:var(--acc);background:var(--adim)}
+.s-item.done .s-dot{border-color:var(--acc);background:var(--acc);color:#060b12;font-size:12px}
+.s-item.running .s-dot{border-color:var(--blu);color:var(--blu);animation:pdot 1s ease-in-out infinite}
+@keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(59,138,255,.4)}50%{box-shadow:0 0 0 5px rgba(59,138,255,0)}}
+.s-info{flex:1;min-width:0}
+.s-name{font-size:11px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-item.active .s-name{color:var(--acc)}
+.s-item.done .s-name{color:var(--t1)}
+.s-sub{font-size:9px;font-family:var(--mono);color:var(--t3);margin-top:1px}
+.s-conn{width:1px;height:10px;background:var(--b1);margin:0 0 0 24px}
+.s-status{font-size:9px;font-family:var(--mono);margin-left:auto}
+.s-item.done .s-status{color:var(--acc)}
+.s-item.running .s-status{color:var(--blu)}
+/* Content */
+.cnt{flex:1;overflow-y:auto;padding:20px 24px;background:var(--bg)}
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:32px}
+.w-title{font-size:30px;font-weight:800;color:#fff;margin-bottom:10px;letter-spacing:-1px;line-height:1.2}
+.w-title span{color:var(--acc)}
+.w-sub{font-size:13px;color:var(--t2);max-width:480px;line-height:1.7;margin-bottom:28px}
+.pipe-row{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--b1);border-radius:10px;padding:16px 24px}
+.ps{text-align:center;font-size:10px;font-family:var(--mono);color:var(--t2)}
+.ps-i{font-size:18px;margin-bottom:4px;display:block}
+.pa{color:var(--t3);font-size:14px}
+/* Upload zone */
+.upz{border:2px dashed var(--b2);border-radius:10px;padding:48px 32px;text-align:center;cursor:pointer;transition:all .2s;max-width:520px;margin:32px auto}
+.upz:hover,.upz.drag-over{border-color:var(--acc);background:var(--adim)}
+.upz-icon{font-size:40px;display:block;margin-bottom:12px}
+.upz-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:6px}
+.upz-sub{font-size:12px;color:var(--t2);font-family:var(--mono);line-height:1.7}
+.fmt-row{display:flex;gap:6px;justify-content:center;margin-top:14px}
+.fmt{font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:4px;border:1px solid var(--b2);color:var(--t3)}
+/* Section header */
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.sh-title{font-size:19px;font-weight:700;color:#fff}
+.sh-badge{font-size:9px;font-family:var(--mono);color:var(--acc);background:var(--adim);border:1px solid var(--aglow);padding:2px 7px;border-radius:4px;letter-spacing:1px}
+.sh-btn{margin-left:auto;background:var(--acc);color:#060b12;border:none;padding:7px 16px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.sh-btn:hover{filter:brightness(1.1)}
+.sh-btn-ghost{margin-left:4px;background:transparent;color:var(--t2);border:1px solid var(--b2);padding:7px 16px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.sh-btn-ghost:hover{background:var(--b1);color:var(--t1)}
+/* Stats grid */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.sc{background:var(--card);border:1px solid var(--b1);border-radius:7px;padding:12px}
+.sc-lbl{font-size:9px;font-family:var(--mono);color:var(--t2);letter-spacing:1px;margin-bottom:3px}
+.sc-val{font-size:20px;font-weight:700;color:#fff;font-family:var(--mono)}
+.sc-val.a{color:var(--acc)}
+/* Table */
+.tbl-wrap{background:var(--card);border:1px solid var(--b1);border-radius:7px;overflow:hidden;margin-bottom:16px}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+th{background:rgba(0,229,160,.06);color:var(--acc);padding:9px 12px;text-align:left;font-weight:600;border-bottom:1px solid var(--b1);white-space:nowrap;font-size:10px;letter-spacing:.5px}
+td{padding:7px 12px;border-bottom:1px solid var(--b1);color:var(--t1);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+/* Columns */
+.col-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px}
+.cc{font-size:10px;font-family:var(--mono);padding:3px 9px;border-radius:10px;border:1px solid var(--b2);color:var(--t2)}
+.cc.num{border-color:rgba(59,138,255,.35);color:var(--blu);background:rgba(59,138,255,.06)}
+.cc.cat{border-color:rgba(157,112,255,.35);color:var(--pur);background:rgba(157,112,255,.06)}
+/* Code block */
+.cb{background:#0d1117;border:1px solid var(--b1);border-radius:7px;overflow:hidden;margin-bottom:14px}
+.cb-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--b1);background:#0a0e16}
+.cb-lang{font-size:10px;font-family:var(--mono);color:var(--t2);letter-spacing:1px}
+.cp-btn{font-size:10px;font-family:var(--mono);color:var(--t3);background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:4px;transition:all .15s}
+.cp-btn:hover{color:var(--t1);background:var(--b1)}
+pre{padding:14px;overflow-x:auto;font-size:11px;line-height:1.8;margin:0}
+pre code{font-family:var(--mono)!important}
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;padding:56px;gap:14px}
+.spinner{width:36px;height:36px;border:2px solid var(--b2);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ld-txt{font-size:12px;font-family:var(--mono);color:var(--t2)}
+.ld-step{font-size:11px;font-family:var(--mono);color:var(--acc);animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+/* Charts */
+.ch-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px}
+.ch-card{background:var(--card);border:1px solid var(--b1);border-radius:7px;padding:14px}
+.ch-title{font-size:11px;font-weight:600;color:var(--t2);margin-bottom:10px;font-family:var(--mono);letter-spacing:.5px}
+.ch-card canvas{max-height:210px}
+/* Slides */
+.sl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sl-card{background:var(--card);border:1px solid var(--b1);border-radius:7px;aspect-ratio:16/9;padding:16px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;transition:all .2s;cursor:pointer}
+.sl-card:hover{border-color:var(--aglow);transform:translateY(-2px)}
+.sl-card.t-slide{background:linear-gradient(135deg,#0d1a2a 0%,#0a1520 100%);border-color:var(--aglow);align-items:center;text-align:center}
+.sl-num{position:absolute;top:7px;right:9px;font-size:9px;font-family:var(--mono);color:var(--t3)}
+.sl-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.3}
+.sl-subtitle{font-size:10px;color:var(--acc);font-family:var(--mono)}
+.sl-bullet{font-size:9px;color:var(--t2);padding:2px 0 2px 10px;position:relative;line-height:1.4}
+.sl-bullet::before{content:'▸';position:absolute;left:0;color:var(--acc);font-size:7px;top:4px}
+.sl-bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--acc) 0%,transparent 100%);opacity:.4}
+.ms-row{display:flex;gap:6px;flex-wrap:wrap}
+.ms{flex:1;min-width:50px;background:rgba(0,229,160,.06);border:1px solid var(--aglow);border-radius:4px;padding:5px;text-align:center}
+.ms-val{font-size:12px;font-weight:700;color:var(--acc);font-family:var(--mono)}
+.ms-lbl{font-size:8px;color:var(--t3);margin-top:1px}
+/* Markdown */
+.md-body{background:var(--card);border:1px solid var(--b1);border-radius:8px;padding:28px;font-size:13px;line-height:1.8;color:var(--t1)}
+.md-body h1{font-size:22px;color:#fff;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--b1)}
+.md-body h2{font-size:17px;color:var(--acc);margin:20px 0 10px}
+.md-body h3{font-size:14px;color:var(--blu);margin:14px 0 7px}
+.md-body p{margin-bottom:10px}
+.md-body code{background:var(--b1);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--acc)}
+.md-body pre{background:#0d1117;padding:14px;border-radius:6px;overflow-x:auto;margin:12px 0}
+.md-body pre code{background:none;color:var(--t1)}
+.md-body ul,.md-body ol{padding-left:20px;margin-bottom:10px}
+.md-body li{margin-bottom:3px}
+.md-body blockquote{border-left:3px solid var(--acc);padding-left:12px;color:var(--t2);margin:12px 0}
+.md-body table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.md-body th{background:var(--adim);color:var(--acc);padding:7px 10px;text-align:left;border:1px solid var(--b1)}
+.md-body td{padding:7px 10px;border:1px solid var(--b1)}
+/* Error */
+.err-box{background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.25);border-radius:7px;padding:12px 14px;font-size:11px;font-family:var(--mono);color:var(--red);margin-bottom:14px;line-height:1.6}
+/* Stage empty */
+.stage-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px;text-align:center;gap:14px}
+.se-icon{font-size:36px}
+.se-title{font-size:16px;font-weight:700;color:#fff}
+.se-sub{font-size:12px;color:var(--t2);font-family:var(--mono);max-width:320px;line-height:1.6}
+.mini-lbl{font-size:9px;font-family:var(--mono);color:var(--t2);letter-spacing:1.5px;margin-bottom:7px;text-transform:uppercase}
+input[type="file"]{display:none}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-ic">DF</div>
+    <span class="logo-tx">DataForge</span>
+    <span class="logo-bd">AGENT</span>
+  </div>
+  <span class="data-name" id="dataName" style="display:none"></span>
+  <div class="hdr-r">
+    <button class="btn-run" id="runAllBtn" onclick="runAllStages()" disabled>▶ Run Full Pipeline</button>
+    <button class="btn-up" onclick="document.getElementById('fi').click()">↑ Upload CSV</button>
+    <input type="file" id="fi" accept=".csv,.tsv" onchange="handleFile(event)">
+  </div>
+</header>
+
+<div class="main">
+  <nav class="sb">
+    <div class="sb-lbl">PIPELINE</div>
+    <div class="s-item" id="s-upload" onclick="goStage('upload')">
+      <div class="s-dot">01</div>
+      <div class="s-info"><div class="s-name">Data Ingest</div><div class="s-sub">Upload & Preview</div></div>
+    </div>
+    <div class="s-conn"></div>
+    <div class="s-item" id="s-sql" onclick="goStage('sql')">
+      <div class="s-dot">02</div>
+      <div class="s-info"><div class="s-name">SQL Architect</div><div class="s-sub">Schema & Queries</div></div>
+      <span class="s-status" id="ss-sql"></span>
+    </div>
+    <div class="s-conn"></div>
+    <div class="s-item" id="s-python" onclick="goStage('python')">
+      <div class="s-dot">03</div>
+      <div class="s-info"><div class="s-name">Python EDA</div><div class="s-sub">Analysis Script</div></div>
+      <span class="s-status" id="ss-python"></span>
+    </div>
+    <div class="s-conn"></div>
+    <div class="s-item" id="s-dashboard" onclick="goStage('dashboard')">
+      <div class="s-dot">04</div>
+      <div class="s-info"><div class="s-name">Dashboard</div><div class="s-sub">Live Charts</div></div>
+      <span class="s-status" id="ss-dashboard"></span>
+    </div>
+    <div class="s-conn"></div>
+    <div class="s-item" id="s-slides" onclick="goStage('slides')">
+      <div class="s-dot">05</div>
+      <div class="s-info"><div class="s-name">PowerPoint</div><div class="s-sub">Slide Deck</div></div>
+      <span class="s-status" id="ss-slides"></span>
+    </div>
+    <div class="s-conn"></div>
+    <div class="s-item" id="s-report" onclick="goStage('report')">
+      <div class="s-dot">06</div>
+      <div class="s-info"><div class="s-name">GitHub Report</div><div class="s-sub">README + Push</div></div>
+      <span class="s-status" id="ss-report"></span>
+    </div>
+  </nav>
+  <main class="cnt" id="cnt">
+    <div class="welcome">
+      <div class="w-title">End-to-End<br><span>Data Analysis Agent</span></div>
+      <div class="w-sub">Upload any CSV and this agent runs the full analyst workflow — SQL schema design, Python EDA, live dashboards, PowerPoint deck, and a GitHub-ready README report. All AI-powered.</div>
+      <div class="pipe-row">
+        <div class="ps"><span class="ps-i">📁</span>Ingest</div><span class="pa">→</span>
+        <div class="ps"><span class="ps-i">🗄️</span>SQL</div><span class="pa">→</span>
+        <div class="ps"><span class="ps-i">🐍</span>Python</div><span class="pa">→</span>
+        <div class="ps"><span class="ps-i">📊</span>Dashboard</div><span class="pa">→</span>
+        <div class="ps"><span class="ps-i">📑</span>PowerPoint</div><span class="pa">→</span>
+        <div class="ps"><span class="ps-i">🚀</span>GitHub</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let rows=[], cols=[], colTypes={}, dataSummary='', results={};
+let activeStage='welcome', chartInstances=[];
+
+// ── File Handling ──────────────────────────────────────────────────────
+function handleFile(e){
+  const f=e.target.files[0]; if(!f)return;
+  document.getElementById('dataName').style.display='';
+  document.getElementById('dataName').textContent=f.name;
+  Papa.parse(f,{
+    header:true,dynamicTyping:true,skipEmptyLines:true,
+    complete(res){
+      rows=res.data; cols=res.meta.fields||[];
+      inferTypes(); buildSummary();
+      document.getElementById('runAllBtn').disabled=false;
+      setStageDone('upload');
+      goStage('upload');
+    },
+    error(err){alert('Parse error: '+err.message)}
+  });
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  const f=e.dataTransfer.files[0];
+  if(f){const fi=document.getElementById('fi');const dt=new DataTransfer();dt.items.add(f);fi.files=dt.files;handleFile({target:fi})}
+}
+
+function inferTypes(){
+  cols.forEach(c=>{
+    const vals=rows.map(r=>r[c]).filter(v=>v!=null&&v!=='');
+    const n=vals.filter(v=>typeof v==='number'&&!isNaN(v)).length;
+    colTypes[c]=n/Math.max(vals.length,1)>0.6?'numeric':'categorical';
+  });
+}
+
+function buildSummary(){
+  const numCols=cols.filter(c=>colTypes[c]==='numeric');
+  const catCols=cols.filter(c=>colTypes[c]==='categorical');
+  const stats={};
+  numCols.forEach(c=>{
+    const v=rows.map(r=>r[c]).filter(v=>typeof v==='number'&&!isNaN(v));
+    if(v.length){stats[c]={min:Math.min(...v).toFixed(2),max:Math.max(...v).toFixed(2),mean:(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2),count:v.length}}
+  });
+  const topCats={};
+  catCols.slice(0,4).forEach(c=>{
+    const freq={};
+    rows.forEach(r=>{const v=String(r[c]||'');freq[v]=(freq[v]||0)+1});
+    topCats[c]=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>k+'('+v+')').join(', ');
+  });
+  dataSummary=`DATASET: ${rows.length} rows × ${cols.length} columns
+Numeric: ${numCols.join(', ')||'none'}
+Categorical: ${catCols.join(', ')||'none'}
+Numeric stats: ${JSON.stringify(stats)}
+Top categories: ${JSON.stringify(topCats)}
+Sample rows (first 8): ${JSON.stringify(rows.slice(0,8))}`;
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────
+function goStage(id){
+  document.querySelectorAll('.s-item').forEach(e=>e.classList.remove('active'));
+  document.getElementById('s-'+id)?.classList.add('active');
+  activeStage=id;
+  if(id==='upload'){renderUpload();return}
+  if(results[id]){
+    if(id==='sql')renderSQL(results.sql);
+    else if(id==='python')renderPython(results.python);
+    else if(id==='dashboard')renderDashboard(results.dashboard);
+    else if(id==='slides')renderSlides(results.slides);
+    else if(id==='report')renderReport(results.report);
+  } else if(rows.length>0){renderEmpty(id)}
+}
+
+function setStageDone(id){
+  const el=document.getElementById('s-'+id);
+  if(!el)return;
+  el.classList.remove('running');el.classList.add('done');
+  el.querySelector('.s-dot').textContent='✓';
+  const ss=document.getElementById('ss-'+id);
+  if(ss)ss.textContent='done';
+}
+
+function setStageRunning(id){
+  const el=document.getElementById('s-'+id);
+  if(!el)return;
+  el.classList.remove('done');el.classList.add('running');
+  el.querySelector('.s-dot').textContent='⋯';
+  const ss=document.getElementById('ss-'+id);
+  if(ss)ss.textContent='...';
+  document.querySelectorAll('.s-item').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  activeStage=id;
+}
+
+// ── Render helpers ────────────────────────────────────────────────────
+function setContent(h){document.getElementById('cnt').innerHTML=h}
+
+function renderLoading(id){
+  const steps={
+    sql:['Analyzing column types…','Designing schema…','Writing SQL queries…'],
+    python:['Setting up imports…','Building EDA script…','Adding visualizations…'],
+    dashboard:['Analyzing patterns…','Designing charts…','Building configs…'],
+    slides:['Structuring deck…','Writing slide content…','Adding insights…'],
+    report:['Compiling findings…','Writing README…','Preparing GitHub push…']
+  };
+  const s=steps[id]||['Processing…'];let idx=0;
+  setContent(`<div class="loading"><div class="spinner"></div><div class="ld-txt">AI is running ${id} analysis…</div><div class="ld-step" id="lstep">${s[0]}</div></div>`);
+  return setInterval(()=>{idx=(idx+1)%s.length;const e=document.getElementById('lstep');if(e)e.textContent=s[idx]},1100);
+}
+
+function renderEmpty(id){
+  const meta={
+    sql:{i:'🗄️',n:'SQL Architect',d:'Generate CREATE TABLE + analytical queries'},
+    python:{i:'🐍',n:'Python EDA',d:'Generate complete EDA script with pandas & matplotlib'},
+    dashboard:{i:'📊',n:'Dashboard',d:'Generate live interactive charts from your data'},
+    slides:{i:'📑',n:'PowerPoint',d:'Generate a 6-slide data-driven presentation'},
+    report:{i:'🚀',n:'GitHub Report',d:'Generate a professional README.md for your repo'}
+  };
+  const m=meta[id];
+  setContent(`<div class="stage-empty"><div class="se-icon">${m.i}</div><div class="se-title">${m.n}</div><div class="se-sub">${m.d}</div><button class="sh-btn" onclick="runStage('${id}')">▶ Run ${m.n}</button></div>`);
+}
+
+function renderUpload(){
+  if(!rows.length){
+    setContent(`<label for="fi"><div class="upz" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)"><span class="upz-icon">📂</span><div class="upz-title">Drop your CSV here</div><div class="upz-sub">Drag & drop or click to browse<br>Works with any structured CSV data</div><div class="fmt-row"><span class="fmt">CSV</span><span class="fmt">TSV</span></div></div></label>`);
+    return;
+  }
+  const numC=cols.filter(c=>colTypes[c]==='numeric');
+  const nullC=cols.filter(c=>rows.some(r=>r[c]==null||r[c]===''));
+  const chips=cols.map(c=>`<span class="cc ${colTypes[c]==='numeric'?'num':'cat'}">${c} ${colTypes[c]==='numeric'?'#':'A'}</span>`).join('');
+  const thead=cols.map(c=>`<th>${c}</th>`).join('');
+  const tbody=rows.slice(0,12).map(r=>`<tr>${cols.map(c=>`<td title="${r[c]}">${r[c]!=null&&r[c]!==''?String(r[c]).slice(0,24):'<span style="color:var(--t3)">null</span>'}</td>`).join('')}</tr>`).join('');
+  setContent(`
+    <div class="sh"><div class="sh-title">📁 Data Ingest</div><span class="sh-badge">LOADED</span>
+      <button class="sh-btn" onclick="runAllStages()">▶ Run Full Pipeline</button></div>
+    <div class="sg">
+      <div class="sc"><div class="sc-lbl">ROWS</div><div class="sc-val a">${rows.length.toLocaleString()}</div></div>
+      <div class="sc"><div class="sc-lbl">COLUMNS</div><div class="sc-val a">${cols.length}</div></div>
+      <div class="sc"><div class="sc-lbl">NUMERIC</div><div class="sc-val">${numC.length}</div></div>
+      <div class="sc"><div class="sc-lbl">WITH NULLS</div><div class="sc-val">${nullC.length}</div></div>
+    </div>
+    <div class="mini-lbl">COLUMN TYPES</div>
+    <div class="col-chips">${chips}</div>
+    <div class="mini-lbl">DATA PREVIEW — first 12 rows</div>
+    <div class="tbl-wrap"><div class="tbl-scroll"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div></div>
+  `);
+}
+
+function renderSQL(sql){
+  setContent(`
+    <div class="sh"><div class="sh-title">🗄️ SQL Architect</div><span class="sh-badge">COMPLETE</span>
+      <button class="sh-btn-ghost" onclick="runStage('sql')">↺ Regenerate</button>
+      <button class="sh-btn" onclick="copyStage('sql')">Copy SQL</button></div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:12px;font-family:var(--mono)">CREATE TABLE + analytical queries ready to run in any SQL database.</div>
+    <div class="cb"><div class="cb-hdr"><span class="cb-lang">SQL</span><button class="cp-btn" onclick="copyStage('sql')">Copy</button></div><pre><code class="language-sql">${esc(sql)}</code></pre></div>
+  `);
+  document.querySelectorAll('pre code').forEach(e=>hljs.highlightElement(e));
+}
+
+function renderPython(code){
+  setContent(`
+    <div class="sh"><div class="sh-title">🐍 Python EDA</div><span class="sh-badge">COMPLETE</span>
+      <button class="sh-btn-ghost" onclick="runStage('python')">↺ Regenerate</button>
+      <button class="sh-btn" onclick="copyStage('python')">Copy Script</button></div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:12px;font-family:var(--mono)">Save as <code style="color:var(--acc);background:var(--b1);padding:1px 5px;border-radius:3px">analyze.py</code> and run with <code style="color:var(--acc);background:var(--b1);padding:1px 5px;border-radius:3px">python analyze.py</code></div>
+    <div class="cb"><div class="cb-hdr"><span class="cb-lang">PYTHON</span><button class="cp-btn" onclick="copyStage('python')">Copy</button></div><pre><code class="language-python">${esc(code)}</code></pre></div>
+  `);
+  document.querySelectorAll('pre code').forEach(e=>hljs.highlightElement(e));
+}
+
+function renderDashboard(data){
+  chartInstances.forEach(c=>c.destroy()); chartInstances=[];
+  const chartsHTML=data.charts.map((c,i)=>`<div class="ch-card"><div class="ch-title">${c.title||'Chart '+(i+1)}</div><canvas id="ch${i}"></canvas></div>`).join('');
+  setContent(`
+    <div class="sh"><div class="sh-title">📊 Dashboard</div><span class="sh-badge">COMPLETE</span>
+      <button class="sh-btn-ghost" onclick="runStage('dashboard')">↺ Regenerate</button></div>
+    <div class="ch-grid">${chartsHTML}</div>
+  `);
+  const PAL=['#00e5a0','#3b8aff','#ff8c42','#9d70ff','#ff4d6a','#00d4ff'];
+  requestAnimationFrame(()=>{
+    data.charts.forEach((c,i)=>{
+      const el=document.getElementById('ch'+i); if(!el)return;
+      const isPie=c.type==='pie'||c.type==='doughnut';
+      const inst=new Chart(el.getContext('2d'),{
+        type:c.type==='column'?'bar':c.type||'bar',
+        data:{labels:c.labels||[],datasets:[{
+          label:c.title||'',data:c.data||[],
+          backgroundColor:isPie?PAL.map(p=>p+'bb'):PAL[i%PAL.length]+'33',
+          borderColor:isPie?PAL:PAL[i%PAL.length],
+          borderWidth:1.5,borderRadius:c.type==='bar'?4:0,tension:.4
+        }]},
+        options:{
+          responsive:true,maintainAspectRatio:true,
+          plugins:{legend:{display:isPie,labels:{color:'#5a7292',font:{family:'JetBrains Mono',size:10},boxWidth:10}}},
+          scales:isPie?{}:{
+            x:{ticks:{color:'#5a7292',font:{family:'JetBrains Mono',size:9},maxRotation:40},grid:{color:'#1a2840'}},
+            y:{ticks:{color:'#5a7292',font:{family:'JetBrains Mono',size:9}},grid:{color:'#1a2840'}}
+          }
+        }
+      });
+      chartInstances.push(inst);
+    });
+  });
+}
+
+function renderSlides(data){
+  const slides=data.slides||[];
+  const html=slides.map((s,i)=>{
+    const isTitle=s.type==='title'||i===0;
+    const isStats=s.type==='stats';
+    let inner='';
+    if(isTitle){inner=`<div class="sl-title" style="font-size:14px">${s.title||''}</div><div class="sl-subtitle">${s.subtitle||''}</div>`}
+    else if(isStats&&s.stats){inner=`<div class="sl-title" style="font-size:12px;margin-bottom:8px">${s.title||''}</div><div class="ms-row">${(s.stats||[]).map(x=>`<div class="ms"><div class="ms-val">${x.value}</div><div class="ms-lbl">${x.label}</div></div>`).join('')}</div>`}
+    else{const b=(s.bullets||[s.content||'']).filter(Boolean);inner=`<div class="sl-title" style="font-size:12px;margin-bottom:7px">${s.title||''}</div>${b.map(b=>`<div class="sl-bullet">${b}</div>`).join('')}`}
+    return `<div class="sl-card ${isTitle?'t-slide':''}"><div class="sl-num">${i+1}/${slides.length}</div>${inner}<div class="sl-bar"></div></div>`;
+  }).join('');
+  setContent(`
+    <div class="sh"><div class="sh-title">📑 PowerPoint Deck</div><span class="sh-badge">COMPLETE</span>
+      <button class="sh-btn-ghost" onclick="runStage('slides')">↺ Regenerate</button>
+      <button class="sh-btn" onclick="copyStage('slides')">Copy JSON</button></div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:14px;font-family:var(--mono)">${slides.length} slides · ${data.title||'Analysis Deck'}</div>
+    <div class="sl-grid">${html}</div>
+  `);
+}
+
+function renderReport(md){
+  setContent(`
+    <div class="sh"><div class="sh-title">🚀 GitHub Report</div><span class="sh-badge">COMPLETE</span>
+      <button class="sh-btn-ghost" onclick="runStage('report')">↺ Regenerate</button>
+      <button class="sh-btn" onclick="copyStage('report')">Copy README.md</button></div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:14px;font-family:var(--mono)">
+      Copy → save as <code style="color:var(--acc);background:var(--b1);padding:1px 5px;border-radius:3px">README.md</code> in your repo → <code style="color:var(--acc);background:var(--b1);padding:1px 5px;border-radius:3px">git add . && git commit -m "Add analysis" && git push</code>
+    </div>
+    <div class="md-body">${marked.parse(md)}</div>
+  `);
+}
+
+// ── API Calls ──────────────────────────────────────────────────────────
+async function ai(system, user){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system,messages:[{role:'user',content:user}]})
+  });
+  if(!r.ok)throw new Error('API '+r.status+': '+await r.text());
+  const d=await r.json();
+  return d.content[0].text;
+}
+
+async function runStage(id){
+  if(!rows.length){alert('Upload a CSV file first.');return}
+  setStageRunning(id);
+  const timer=renderLoading(id);
+  try{
+    if(id==='sql'){
+      results.sql=await ai(
+        'You are an expert SQL database architect. Be precise and concise.',
+        `${dataSummary}\n\nGenerate SQL for this dataset:\n1. CREATE TABLE with proper column types and constraints\n2. Relevant CREATE INDEX statements\n3. Five insightful analytical SQL queries, each with a comment explaining what business insight it reveals\n\nReturn only SQL code with inline comments. No prose before or after.`
+      );
+      setStageDone('sql'); clearInterval(timer);
+      if(activeStage==='sql')renderSQL(results.sql);
+
+    }else if(id==='python'){
+      results.python=await ai(
+        'You are a senior Python data analyst. Write clean, well-commented production-ready code.',
+        `${dataSummary}\n\nWrite a complete Python EDA script. Requirements:\n1. Imports: pandas, numpy, matplotlib, seaborn\n2. Load from 'data.csv'\n3. Data cleaning: handle nulls, fix types\n4. print() statistical summary with insights\n5. 4 different visualizations (histograms, bar charts, correlation heatmap, scatter) with plt.savefig() calls\n6. Final insights summary printed\n\nTarget 70-90 lines. Include descriptive comments. No explanation text, just code.`
+      );
+      setStageDone('python'); clearInterval(timer);
+      if(activeStage==='python')renderPython(results.python);
+
+    }else if(id==='dashboard'){
+      const raw=await ai(
+        'You are a data visualization expert. Return ONLY valid JSON with no markdown fences, no explanation text.',
+        `${dataSummary}\n\nGenerate chart configurations. Return ONLY this JSON structure:\n{"charts":[{"type":"bar","title":"...","labels":["a","b","c"],"data":[10,20,30]},{"type":"line","title":"...","labels":["x","y","z"],"data":[5,15,25]},{"type":"pie","title":"...","labels":["cat1","cat2"],"data":[60,40]}]}\n\nRules: Use actual column names and real computed values from the sample data. Generate exactly 3 charts showing the most interesting patterns. Keep labels to ≤8 items. Numbers only in data arrays.`
+      );
+      let d;
+      try{d=JSON.parse(raw.replace(/```json|```/g,'').trim())}
+      catch{const m=raw.match(/\{[\s\S]*\}/);if(m)d=JSON.parse(m[0]);else throw new Error('Chart JSON parse failed')}
+      results.dashboard=d; setStageDone('dashboard'); clearInterval(timer);
+      if(activeStage==='dashboard')renderDashboard(d);
+
+    }else if(id==='slides'){
+      const raw=await ai(
+        'You are a presentation designer. Return ONLY valid JSON with no markdown fences, no text before or after.',
+        `${dataSummary}\n\nCreate a 6-slide data analysis PowerPoint. Return ONLY this JSON:\n{"title":"...", "slides":[{"type":"title","title":"...","subtitle":"..."},{"type":"bullets","title":"...","bullets":["...","...","..."]},{"type":"stats","title":"...","stats":[{"label":"...","value":"..."},{"label":"...","value":"..."},{"label":"...","value":"..."}]},{"type":"bullets","title":"...","bullets":["...","...","..."]},{"type":"bullets","title":"...","bullets":["...","...","..."]},{"type":"bullets","title":"Recommendations","bullets":["...","...","..."]}]}\n\nUse real insights from the data. Keep bullets short (≤12 words each). Stats should be real computed values.`
+      );
+      let d;
+      try{d=JSON.parse(raw.replace(/```json|```/g,'').trim())}
+      catch{const m=raw.match(/\{[\s\S]*\}/);if(m)d=JSON.parse(m[0]);else throw new Error('Slides JSON parse failed')}
+      results.slides=d; setStageDone('slides'); clearInterval(timer);
+      if(activeStage==='slides')renderSlides(d);
+
+    }else if(id==='report'){
+      results.report=await ai(
+        'You are a senior technical writer. Write concise, professional documentation.',
+        `${dataSummary}\n\nWrite a complete GitHub README.md for this data analysis project. Include these sections:\n# [Project Title]\n## Overview\n## Dataset\n## Analysis Pipeline (explain each of the 6 stages: Ingest → SQL → Python EDA → Dashboard → PowerPoint → GitHub)\n## Key Findings (5 bullet points with real insights from the data)\n## How to Run\n## Tech Stack\n## Project Structure\n\nMake it professional and publication-ready. Use markdown formatting throughout.`
+      );
+      setStageDone('report'); clearInterval(timer);
+      if(activeStage==='report')renderReport(results.report);
+    }
+  }catch(err){
+    clearInterval(timer);
+    document.getElementById('s-'+id).classList.remove('running');
+    setContent(`<div class="sh"><div class="sh-title">Error in ${id}</div></div><div class="err-box">⚠ ${esc(err.message)}</div><button class="sh-btn" onclick="runStage('${id}')">↺ Retry</button>`);
+  }
+}
+
+async function runAllStages(){
+  if(!rows.length){alert('Upload a CSV file first.');return}
+  document.getElementById('runAllBtn').disabled=true;
+  for(const id of['sql','python','dashboard','slides','report']){
+    await runStage(id);
+    await new Promise(r=>setTimeout(r,200));
+  }
+  document.getElementById('runAllBtn').disabled=false;
+  goStage('sql');
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function copyStage(id){
+  const t=typeof results[id]==='string'?results[id]:JSON.stringify(results[id],null,2);
+  navigator.clipboard.writeText(t).then(()=>{
+    const btns=document.querySelectorAll('.sh-btn,.cp-btn');
+    btns.forEach(b=>{if(b.onclick?.toString().includes(id)||b.textContent.includes('Copy')){const o=b.textContent;b.textContent='✓ Copied!';setTimeout(()=>b.textContent=o,2000)}});
+  });
+}
+</script>
+</body>
+</html>

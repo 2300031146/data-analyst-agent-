@@ -70,5 +70,5 @@ If you like this project, give it a ⭐ on GitHub!
 
 ## 📸 Project Screenshot
 
-[Data Analyst Agent UI]()
+[Data Analyst Agent UI](https://github.com/2300031146/data-analyst-agent-/blob/main/Screenshot%202026-05-05%20145941.png)
 
